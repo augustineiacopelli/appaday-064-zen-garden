@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Zen Garden - AppADay 064</title>
+<meta name="description" content="A dry garden you rake with your finger. Carve grooves in the sand, set stones, moss, and a lantern, and ripple the sand around them.">
+<style>
+  :root{
+    --ink:#15130F;
+    --cedar:#241E19;
+    --cedar-hi:#3A312A;
+    --hairline:#4C4038;
+    --washi:#E6DECC;
+    --washi-dim:#9A8F7D;
+    --moss:#7E9260;
+    --vermilion:#B4402F;
+    --radius:9px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    background:var(--ink);
+    color:var(--washi);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    overscroll-behavior:none;
+  }
+
+  /* Header */
+  header{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:center;
+    gap:10px;
+    padding:10px 14px calc(10px);
+    padding-top:calc(10px + env(safe-area-inset-top));
+    background:var(--cedar);
+    border-bottom:1px solid var(--hairline);
+  }
+  .home{
+    justify-self:start;
+    color:var(--washi-dim);
+    text-decoration:none;
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    padding:6px 2px;
+  }
+  .home:hover,.home:focus-visible{color:var(--washi)}
+  .id{display:flex;align-items:baseline;gap:9px}
+  .num{
+    font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    letter-spacing:.12em;
+    color:var(--vermilion);
+    border:1px solid var(--vermilion);
+    border-radius:3px;
+    padding:4px 5px 3px;
+  }
+  h1{
+    margin:0;
+    font-family:Iowan Old Style,Palatino Linotype,Palatino,Georgia,serif;
+    font-weight:400;
+    font-size:19px;
+    letter-spacing:.03em;
+  }
+  .spacer{justify-self:end}
+
+  /* Garden */
+  main{
+    flex:1 1 auto;
+    min-height:0;
+    padding:12px;
+    display:flex;
+  }
+  #stage{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    border-radius:4px;
+    overflow:hidden;
+    box-shadow:
+      0 0 0 1px #0d0b09,
+      0 0 0 7px #3b2f25,
+      0 0 0 8px #1c1713,
+      0 14px 34px rgba(0,0,0,.55);
+    touch-action:none;
+    cursor:crosshair;
+  }
+  #garden{display:block;width:100%;height:100%;touch-action:none}
+  #hint{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    text-align:center;
+    color:#6b6252;
+    font-family:Iowan Old Style,Palatino Linotype,Palatino,Georgia,serif;
+    font-size:15px;
+    letter-spacing:.04em;
+    line-height:1.7;
+    transition:opacity .5s ease;
+    padding:0 20px;
+  }
+  #hint.gone{opacity:0}
+
+  /* Rack */
+  footer{
+    background:var(--cedar);
+    border-top:1px solid var(--hairline);
+    padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:center;
+  }
+  .row{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+  .row.sep{position:relative;padding-top:9px;width:100%}
+  .row.sep::before{
+    content:"";
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:64px;height:1px;background:var(--hairline);
+  }
+  button{
+    font:inherit;color:var(--washi);background:transparent;border:1px solid var(--hairline);
+    border-radius:var(--radius);cursor:pointer;
+  }
+  .tool{
+    width:46px;height:46px;
+    display:grid;place-items:center;
+    transition:background .16s ease,border-color .16s ease,color .16s ease;
+  }
+  .tool svg{width:24px;height:24px;display:block}
+  .tool:hover{background:var(--cedar-hi)}
+  .tool[aria-pressed="true"]{
+    background:var(--moss);
+    border-color:var(--moss);
+    color:var(--ink);
+  }
+  .act{
+    padding:9px 13px;
+    font-size:11px;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+    color:var(--washi-dim);
+  }
+  .act:hover{color:var(--washi);background:var(--cedar-hi)}
+  :focus-visible{outline:2px solid var(--moss);outline-offset:2px}
+  #status{
+    font-size:11.5px;
+    letter-spacing:.05em;
+    color:var(--washi-dim);
+    text-align:center;
+    min-height:1.2em;
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important}
+  }
+  @media (max-width:400px){
+    .tool{width:42px;height:42px}
+    .tool svg{width:22px;height:22px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home" href="https://augustineiacopelli.github.io/appaday/">AppADay</a>
+  <div class="id"><span class="num">064</span><h1>Zen Garden</h1></div>
+  <span class="spacer"></span>
+</header>
+
+<main>
+  <div id="stage">
+    <canvas id="garden"></canvas>
+    <div id="hint">Drag a finger across the sand.<br>Set a stone. Rake around it.</div>
+  </div>
+</main>
+
+<footer>
+  <div class="row" id="tools" role="group" aria-label="Rakes"></div>
+  <div class="row sep" id="elements" role="group" aria-label="Garden elements"></div>
+  <div class="row">
+    <button class="act" id="flatten" type="button">Flatten the sand</button>
+    <button class="act" id="save" type="button">Save image</button>
+  </div>
+  <div id="status" aria-live="polite">Drag across the sand. Drag a stone to move it.</div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var TAU = Math.PI * 2;
+  var CELL = 2;              // css pixels per sand cell
+  var SAND = [222, 209, 187];
+
+  var stage = document.getElementById("stage");
+  var canvas = document.getElementById("garden");
+  var ctx = canvas.getContext("2d");
+  var hint = document.getElementById("hint");
+  var statusEl = document.getElementById("status");
+
+  var sand = document.createElement("canvas");
+  var sctx = sand.getContext("2d");
+
+  var W = 0, H = 0;          // grid dims
+  var cssW = 0, cssH = 0, dpr = 1;
+  var Hf = null, grain = null, img = null;
+  var dirty = null;
+  var needsDraw = true;
+
+  var elements = [];
+  var armed = null;
+  var drag = null;
+  var stroke = null;
+  var trash = null;
+
+  /* ---------- tools ---------- */
+
+  var TOOLS = {
+    finger: { tines:[0],                       rg:4.2, depth:1.00, label:"Finger. One soft groove." },
+    rake:   { tines:[-13,0,13],                rg:2.4, depth:0.95, label:"Rake. Three tines." },
+    wide:   { tines:[-25,-15,-5,5,15,25],      rg:2.2, depth:0.90, label:"Wide rake. Six tines." },
+    ripple: { tap:true,                                            label:"Ripples. Tap the sand or a stone." },
+    smooth: { brush:true,                                          label:"Smoothing brush. Wipe the grooves away." }
+  };
+  var tool = "rake";
+
+  var TOOL_ICONS = {
+    finger:'<path d="M3 16c3 0 3-8 6-8s3 8 6 8 3-8 6-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    rake:'<path d="M4 5h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 6v13M12 6v13M17 6v13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    wide:'<path d="M2 5h20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 6v13M7.6 6v13M11.2 6v13M14.8 6v13M18.4 6v13M22 6v13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+    ripple:'<circle cx="12" cy="12" r="2.2" fill="currentColor"/><circle cx="12" cy="12" r="5.6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.3"/>',
+    smooth:'<rect x="3.5" y="7" width="17" height="5" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 17.5c2.6-1.6 5.2-1.6 8 0s5.4 1.6 8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'
+  };
+
+  /* ---------- elements ---------- */
+
+  var SPECS = {
+    stone:   { min:15, max:31, imp:1.00, hitR:1.15, yOff:0,    name:"stone" },
+    moss:    { min:12, max:22, imp:0.85, hitR:1.15, yOff:0,    name:"mossy stone" },
+    pebbles: { min:17, max:24, imp:0.55, hitR:1.05, yOff:0,    name:"pebbles" },
+    leaf:    { min:11, max:16, imp:0.00, hitR:1.20, yOff:0,    name:"maple leaf" },
+    blossom: { min:9,  max:13, imp:0.00, hitR:1.35, yOff:0,    name:"blossom" },
+    lantern: { min:13, max:17, imp:0.90, hitR:1.55, yOff:-1.4, name:"lantern" }
+  };
+
+  var EL_ICONS = {
+    stone:'<path d="M4.5 15.5c-1-4 2.5-8.5 7-8.5s9 3 8.2 7.5C19 18 15 19 11.5 19S5.2 18.3 4.5 15.5z" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    moss:'<path d="M4.5 15.5c-1-4 2.5-8.5 7-8.5s9 3 8.2 7.5C19 18 15 19 11.5 19S5.2 18.3 4.5 15.5z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="12" r="1.1" fill="currentColor"/><circle cx="13" cy="10.6" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1.1" fill="currentColor"/>',
+    pebbles:'<circle cx="8" cy="9" r="3.1" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="15.5" cy="11" r="2.4" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="16" r="2.8" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+    leaf:'<path d="M12 3c4 4.5 5.5 8 5.5 11 0 3.2-2.5 5.5-5.5 5.5S6.5 17.2 6.5 14C6.5 11 8 7.5 12 3z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 19V7.5" stroke="currentColor" stroke-width="1.3"/>',
+    blossom:'<circle cx="12" cy="6.6" r="3.1" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="17.2" cy="10.4" r="3.1" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="15.2" cy="16.6" r="3.1" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8.8" cy="16.6" r="3.1" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="6.8" cy="10.4" r="3.1" fill="none" stroke="currentColor" stroke-width="1.3"/>',
+    lantern:'<path d="M6 8.5l6-4 6 4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><rect x="8.2" y="8.5" width="7.6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 13.5v4" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 19.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+  };
+
+  /* ---------- helpers ---------- */
+
+  function rand(seed){
+    var a = seed | 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
+
+  function ell(c, x, y, rx, ry){
+    c.save();
+    c.translate(x, y);
+    c.scale(1, ry / rx);
+    c.beginPath();
+    c.arc(0, 0, rx, 0, TAU);
+    c.restore();
+  }
+  function rr(c, x, y, w, h, r){
+    r = Math.min(r, w / 2, h / 2);
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  /* ---------- sand field ---------- */
+
+  function markDirty(x0, y0, x1, y1){
+    x0 = clamp(x0 | 0, 0, W - 1); y0 = clamp(y0 | 0, 0, H - 1);
+    x1 = clamp(x1 | 0, 0, W - 1); y1 = clamp(y1 | 0, 0, H - 1);
+    if (!dirty) dirty = { x0:x0, y0:y0, x1:x1, y1:y1 };
+    else {
+      if (x0 < dirty.x0) dirty.x0 = x0;
+      if (y0 < dirty.y0) dirty.y0 = y0;
+      if (x1 > dirty.x1) dirty.x1 = x1;
+      if (y1 > dirty.y1) dirty.y1 = y1;
+    }
+    needsDraw = true;
+  }
+
+  function groove(cx, cy, rg, depth){
+    var ridge = 2.2;
+    var R = rg + ridge;
+    var x0 = Math.max(0, Math.floor(cx - R)), x1 = Math.min(W - 1, Math.ceil(cx + R));
+    var y0 = Math.max(0, Math.floor(cy - R)), y1 = Math.min(H - 1, Math.ceil(cy + R));
+    for (var y = y0; y <= y1; y++){
+      var dy = y - cy;
+      for (var x = x0; x <= x1; x++){
+        var dx = x - cx;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        var i = y * W + x;
+        if (d < rg){
+          var t = -depth * (0.55 + 0.45 * Math.cos(Math.PI * d / rg));
+          if (t < Hf[i]) Hf[i] = t;
+        } else if (d < R){
+          var rv = depth * 0.30 * (1 - (d - rg) / ridge);
+          if (rv > Hf[i]) Hf[i] = Math.min(0.45, rv);
+        }
+      }
+    }
+    markDirty(x0 - 1, y0 - 1, x1 + 1, y1 + 1);
+  }
+
+  function rake(gx, gy, px, py, t){
+    for (var k = 0; k < t.tines.length; k++){
+      var off = t.tines[k];
+      groove(gx + px * off, gy + py * off, t.rg, t.depth);
+    }
+  }
+
+  function smooth(gx, gy){
+    var R = 15;
+    var x0 = Math.max(0, Math.floor(gx - R)), x1 = Math.min(W - 1, Math.ceil(gx + R));
+    var y0 = Math.max(0, Math.floor(gy - R)), y1 = Math.min(H - 1, Math.ceil(gy + R));
+    for (var y = y0; y <= y1; y++){
+      var dy = y - gy;
+      for (var x = x0; x <= x1; x++){
+        var dx = x - gx;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d > R) continue;
+        var f = 1 - d / R;
+        var i = y * W + x;
+        Hf[i] *= (1 - 0.30 * f * f);
+        if (Math.abs(Hf[i]) < 0.01) Hf[i] = 0;
+      }
+    }
+    markDirty(x0 - 1, y0 - 1, x1 + 1, y1 + 1);
+  }
+
+  function ripple(gx, gy, startR){
+    var spacing = 11, rings = 6, band = 2.3, ridge = 2.0;
+    var maxR = startR + rings * spacing + band + ridge;
+    var x0 = Math.max(0, Math.floor(gx - maxR)), x1 = Math.min(W - 1, Math.ceil(gx + maxR));
+    var y0 = Math.max(0, Math.floor(gy - maxR)), y1 = Math.min(H - 1, Math.ceil(gy + maxR));
+    for (var y = y0; y <= y1; y++){
+      var dy = y - gy;
+      for (var x = x0; x <= x1; x++){
+        var dx = x - gx;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < startR - band - ridge) continue;
+        var k = Math.round((d - startR) / spacing);
+        if (k < 0 || k > rings) continue;
+        var rd = Math.abs(d - (startR + k * spacing));
+        var i = y * W + x;
+        if (rd < band){
+          var t = -0.88 * (0.55 + 0.45 * Math.cos(Math.PI * rd / band));
+          if (t < Hf[i]) Hf[i] = t;
+        } else if (rd < band + ridge){
+          var rv = 0.26 * (1 - (rd - band) / ridge);
+          if (rv > Hf[i]) Hf[i] = Math.min(0.45, rv);
+        }
+      }
+    }
+    markDirty(x0 - 1, y0 - 1, x1 + 1, y1 + 1);
+  }
+
+  function press(el){
+    var sp = SPECS[el.type];
+    if (sp.imp <= 0) return;
+    var R = (el.size * sp.imp) / CELL;
+    var gx = el.x / CELL, gy = el.y / CELL;
+    var edge = 2.4;
+    var x0 = Math.max(0, Math.floor(gx - R - edge)), x1 = Math.min(W - 1, Math.ceil(gx + R + edge));
+    var y0 = Math.max(0, Math.floor(gy - R - edge)), y1 = Math.min(H - 1, Math.ceil(gy + R + edge));
+    for (var y = y0; y <= y1; y++){
+      var dy = y - gy;
+      for (var x = x0; x <= x1; x++){
+        var dx = x - gx;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        var i = y * W + x;
+        if (d < R){
+          var t = -0.95;
+          if (d > R - 3) t = -0.95 * ((R - d) / 3);
+          if (t < Hf[i]) Hf[i] = t;
+        } else if (d < R + edge){
+          var rv = 0.34 * (1 - (d - R) / edge);
+          if (rv > Hf[i]) Hf[i] = Math.min(0.5, rv);
+        }
+      }
+    }
+    markDirty(x0 - 1, y0 - 1, x1 + 1, y1 + 1);
+  }
+
+  /* ---------- sand rendering ---------- */
+
+  function renderSand(){
+    if (!dirty) return;
+    var x0 = dirty.x0, y0 = dirty.y0, x1 = dirty.x1, y1 = dirty.y1;
+    var d = img.data;
+    for (var y = y0; y <= y1; y++){
+      for (var x = x0; x <= x1; x++){
+        var i = y * W + x;
+        var lum;
+        if (x === 0 || y === 0 || x === W - 1 || y === H - 1){
+          lum = 1 + grain[i];
+        } else {
+          var nx = Hf[i - 1] - Hf[i + 1];
+          var ny = Hf[i - W] - Hf[i + W];
+          lum = 1 + (nx + ny) * 0.66 + Hf[i] * 0.09 + grain[i];
+        }
+        lum = clamp(lum, 0.65, 1.35);
+        var p = i * 4;
+        d[p]     = clamp(SAND[0] * lum, 0, 255);
+        d[p + 1] = clamp(SAND[1] * (lum - (1 - lum) * 0.02), 0, 255);
+        d[p + 2] = clamp(SAND[2] * (lum - (1 - lum) * 0.06), 0, 255);
+        d[p + 3] = 255;
+      }
+    }
+    sctx.putImageData(img, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+    dirty = null;
+  }
+
+  /* ---------- element painting ---------- */
+
+  function blob(c, x, y, size, seed, light, dark){
+    var r = rand(seed);
+    var n = 11, pts = [];
+    for (var i = 0; i < n; i++){
+      var a = (i / n) * TAU;
+      var rad = size * (0.80 + 0.28 * r());
+      pts.push([x + Math.cos(a) * rad, y + Math.sin(a) * rad * 0.92]);
+    }
+    c.save();
+    c.globalAlpha = 0.24;
+    c.fillStyle = "#0d0a07";
+    ell(c, x + size * 0.16, y + size * 0.26, size * 1.02, size * 0.98);
+    c.fill();
+    c.restore();
+
+    c.beginPath();
+    c.moveTo((pts[0][0] + pts[n - 1][0]) / 2, (pts[0][1] + pts[n - 1][1]) / 2);
+    for (var j = 0; j < n; j++){
+      var cur = pts[j], nxt = pts[(j + 1) % n];
+      c.quadraticCurveTo(cur[0], cur[1], (cur[0] + nxt[0]) / 2, (cur[1] + nxt[1]) / 2);
+    }
+    c.closePath();
+    var g = c.createRadialGradient(x - size * 0.38, y - size * 0.42, size * 0.08, x, y, size * 1.25);
+    g.addColorStop(0, light);
+    g.addColorStop(1, dark);
+    c.fillStyle = g;
+    c.fill();
+    c.save();
+    c.clip();
+    c.strokeStyle = "rgba(255,255,255,0.10)";
+    c.lineWidth = 2.2;
+    c.beginPath();
+    c.arc(x - size * 0.18, y - size * 0.18, size * 0.78, Math.PI * 1.05, Math.PI * 1.75);
+    c.stroke();
+    c.restore();
+    return r;
+  }
+
+  function drawStone(c, el){
+    blob(c, el.x, el.y, el.size, el.seed, "#8b8781", "#454239");
+  }
+
+  function drawMoss(c, el){
+    var r = blob(c, el.x, el.y, el.size, el.seed, "#84995f", "#3a4a2c");
+    c.fillStyle = "rgba(150,178,110,0.55)";
+    for (var i = 0; i < 9; i++){
+      var a = r() * TAU, d = r() * el.size * 0.72;
+      c.beginPath();
+      c.arc(el.x + Math.cos(a) * d, el.y + Math.sin(a) * d * 0.9, 1 + r() * 1.7, 0, TAU);
+      c.fill();
+    }
+  }
+
+  function drawPebbles(c, el){
+    var r = rand(el.seed);
+    var n = 6;
+    for (var i = 0; i < n; i++){
+      var a = (i / n) * TAU + r() * 0.6;
+      var d = el.size * (0.20 + r() * 0.62);
+      blob(c, el.x + Math.cos(a) * d, el.y + Math.sin(a) * d * 0.8, el.size * (0.20 + r() * 0.14), el.seed + i * 7, "#93908a", "#514e47");
+    }
+  }
+
+  function drawLeaf(c, el){
+    var r = rand(el.seed);
+    var tones = ["#a63c2a", "#bb5f26", "#8d4b25", "#c2762b"];
+    var col = tones[(r() * tones.length) | 0];
+    var s = el.size / 15;
+    c.save();
+    c.translate(el.x, el.y);
+    c.rotate(el.rot);
+    c.scale(s, s);
+    c.globalAlpha = 0.22;
+    c.fillStyle = "#0d0a07";
+    c.save(); c.translate(1.8, 3);
+    c.beginPath();
+    c.moveTo(0, -15); c.quadraticCurveTo(12, -3, 0, 16); c.quadraticCurveTo(-12, -3, 0, -15);
+    c.fill(); c.restore();
+    c.globalAlpha = 1;
+    c.beginPath();
+    c.moveTo(0, -15); c.quadraticCurveTo(12, -3, 0, 16); c.quadraticCurveTo(-12, -3, 0, -15);
+    c.fillStyle = col;
+    c.fill();
+    c.strokeStyle = "rgba(0,0,0,0.30)";
+    c.lineWidth = 0.9;
+    c.beginPath(); c.moveTo(0, -13); c.lineTo(0, 15); c.stroke();
+    c.lineWidth = 0.7;
+    for (var i = -1; i < 3; i++){
+      c.beginPath(); c.moveTo(0, i * 5); c.lineTo(5.5, i * 5 - 4); c.stroke();
+      c.beginPath(); c.moveTo(0, i * 5); c.lineTo(-5.5, i * 5 - 4); c.stroke();
+    }
+    c.restore();
+  }
+
+  function drawBlossom(c, el){
+    c.save();
+    c.translate(el.x, el.y);
+    c.rotate(el.rot);
+    c.globalAlpha = 0.18;
+    c.fillStyle = "#0d0a07";
+    ell(c, 1.4, 2.4, el.size * 0.95, el.size * 0.9);
+    c.fill();
+    c.globalAlpha = 1;
+    for (var i = 0; i < 5; i++){
+      c.save();
+      c.rotate((i / 5) * TAU);
+      c.fillStyle = i % 2 ? "#f0cfd8" : "#f5dbe1";
+      ell(c, 0, -el.size * 0.52, el.size * 0.35, el.size * 0.52);
+      c.fill();
+      c.restore();
+    }
+    c.fillStyle = "#d8ad4d";
+    c.beginPath();
+    c.arc(0, 0, el.size * 0.22, 0, TAU);
+    c.fill();
+    c.restore();
+  }
+
+  function drawLantern(c, el){
+    var s = el.size, x = el.x, y = el.y;
+    c.save();
+    c.globalAlpha = 0.26;
+    c.fillStyle = "#0d0a07";
+    ell(c, x + s * 0.30, y + s * 0.16, s * 1.15, s * 0.48);
+    c.fill();
+    c.restore();
+
+    c.fillStyle = "#57534d";
+    ell(c, x, y, s * 0.95, s * 0.40); c.fill();
+    c.fillStyle = "#6b665f";
+    c.fillRect(x - s * 0.20, y - s * 1.55, s * 0.40, s * 1.55);
+    c.fillStyle = "#736e66";
+    rr(c, x - s * 0.62, y - s * 2.55, s * 1.24, s * 1.05, s * 0.14); c.fill();
+    c.fillStyle = "#e8d5a2";
+    rr(c, x - s * 0.40, y - s * 2.36, s * 0.80, s * 0.68, s * 0.10); c.fill();
+    c.fillStyle = "#4f4c46";
+    c.beginPath();
+    c.moveTo(x - s * 1.18, y - s * 2.55);
+    c.lineTo(x, y - s * 3.35);
+    c.lineTo(x + s * 1.18, y - s * 2.55);
+    c.closePath();
+    c.fill();
+    c.fillStyle = "#5d594f";
+    c.beginPath();
+    c.arc(x, y - s * 3.45, s * 0.16, 0, TAU);
+    c.fill();
+  }
+
+  var PAINT = { stone:drawStone, moss:drawMoss, pebbles:drawPebbles, leaf:drawLeaf, blossom:drawBlossom, lantern:drawLantern };
+
+  function drawElements(c){
+    var list = elements.slice().sort(function(a, b){ return a.y - b.y; });
+    for (var i = 0; i < list.length; i++){
+      var el = list[i];
+      c.save();
+      if (drag && drag.el === el && drag.moved){
+        c.globalAlpha = 0.9;
+      }
+      PAINT[el.type](c, el);
+      c.restore();
+    }
+  }
+
+  /* ---------- trash ---------- */
+
+  function trashRect(){
+    var w = Math.min(200, cssW - 40), h = 54;
+    return { x:(cssW - w) / 2, y:cssH - h - 16, w:w, h:h };
+  }
+  function drawTrash(c){
+    if (!drag || !drag.moved) return;
+    var t = trashRect();
+    var over = trash;
+    c.save();
+    c.globalAlpha = over ? 0.95 : 0.7;
+    c.fillStyle = over ? "#B4402F" : "rgba(30,24,20,0.62)";
+    rr(c, t.x, t.y, t.w, t.h, 8);
+    c.fill();
+    c.lineWidth = 1;
+    c.strokeStyle = over ? "#e2705f" : "rgba(230,222,204,0.35)";
+    rr(c, t.x + 0.5, t.y + 0.5, t.w - 1, t.h - 1, 8);
+    c.stroke();
+    c.fillStyle = "#E6DECC";
+    c.font = "600 11px system-ui, sans-serif";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("DROP HERE TO REMOVE", t.x + t.w / 2, t.y + t.h / 2);
+    c.restore();
+  }
+  function inTrash(x, y){
+    var t = trashRect();
+    return x >= t.x && x <= t.x + t.w && y >= t.y && y <= t.y + t.h;
+  }
+
+  /* ---------- frame ---------- */
+
+  function paint(){
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(sand, 0, 0, W, H, 0, 0, cssW, cssH);
+    drawElements(ctx);
+    drawTrash(ctx);
+  }
+
+  function frame(){
+    if (needsDraw){
+      needsDraw = false;
+      renderSand();
+      paint();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- sizing ---------- */
+
+  function resize(){
+    var rect = stage.getBoundingClientRect();
+    cssW = Math.max(120, Math.round(rect.width));
+    cssH = Math.max(160, Math.round(rect.height));
+    dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+
+    var nw = Math.max(64, Math.round(cssW / CELL));
+    var nh = Math.max(64, Math.round(cssH / CELL));
+    var oldW = W, oldH = H;
+    W = nw; H = nh;
+    sand.width = W; sand.height = H;
+    Hf = new Float32Array(W * H);
+    grain = new Float32Array(W * H);
+    var r = rand(20260710);
+    for (var i = 0; i < grain.length; i++) grain[i] = (r() - 0.5) * 0.075;
+    img = sctx.createImageData(W, H);
+
+    if (oldW && oldH){
+      var sx = cssW / (oldW * CELL), sy = cssH / (oldH * CELL);
+      for (var k = 0; k < elements.length; k++){
+        elements[k].x = clamp(elements[k].x * sx, 10, cssW - 10);
+        elements[k].y = clamp(elements[k].y * sy, 10, cssH - 10);
+      }
+    }
+    for (var m = 0; m < elements.length; m++) press(elements[m]);
+
+    markDirty(0, 0, W - 1, H - 1);
+  }
+
+  /* ---------- interaction ---------- */
+
+  function pos(e){
+    var r = canvas.getBoundingClientRect();
+    return { x:e.clientX - r.left, y:e.clientY - r.top };
+  }
+
+  function hit(x, y){
+    for (var i = elements.length - 1; i >= 0; i--){
+      var el = elements[i], sp = SPECS[el.type];
+      var cy = el.y + sp.yOff * el.size;
+      var dx = x - el.x, dy = y - cy;
+      var R = el.size * sp.hitR;
+      if (dx * dx + dy * dy <= R * R) return el;
+    }
+    return null;
+  }
+
+  function place(type, x, y){
+    var sp = SPECS[type];
+    var seed = (Math.random() * 1e9) | 0;
+    var r = rand(seed);
+    var el = {
+      type: type,
+      x: x, y: y,
+      size: sp.min + r() * (sp.max - sp.min),
+      rot: r() * TAU,
+      seed: seed
+    };
+    elements.push(el);
+    press(el);
+    needsDraw = true;
+    return el;
+  }
+
+  function hideHint(){ hint.classList.add("gone"); }
+
+  function down(e){
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    var p = pos(e);
+    hideHint();
+
+    if (armed){
+      place(armed, p.x, p.y);
+      setArmed(null);
+      return;
+    }
+    var el = hit(p.x, p.y);
+    if (el){
+      elements.splice(elements.indexOf(el), 1);
+      elements.push(el);
+      drag = { el:el, ox:el.x - p.x, oy:el.y - p.y, moved:false };
+      say("Drag it where you like. Drop it on the bar to remove it.");
+      needsDraw = true;
+      return;
+    }
+    if (tool === "ripple"){
+      ripple(p.x / CELL, p.y / CELL, 9);
+      return;
+    }
+    stroke = { x:p.x, y:p.y, px:0, py:0, has:false };
+    if (tool === "smooth") smooth(p.x / CELL, p.y / CELL);
+    else rake(p.x / CELL, p.y / CELL, 0, 1, TOOLS[tool]);
+  }
+
+  function move(e){
+    var p = pos(e);
+    if (drag){
+      var el = drag.el;
+      var nx = clamp(p.x + drag.ox, 6, cssW - 6);
+      var ny = clamp(p.y + drag.oy, 6, cssH - 6);
+      if (!drag.moved && (Math.abs(nx - el.x) > 2 || Math.abs(ny - el.y) > 2)) drag.moved = true;
+      el.x = nx; el.y = ny;
+      if (drag.moved) press(el);
+      var over = inTrash(p.x, p.y);
+      if (over !== trash) trash = over;
+      needsDraw = true;
+      return;
+    }
+    if (!stroke) return;
+
+    var dx = p.x - stroke.x, dy = p.y - stroke.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 0.9) return;
+
+    var ux = dx / dist, uy = dy / dist;
+    var px = -uy, py = ux;
+    if (stroke.has){
+      px = stroke.px * 0.68 + px * 0.32;
+      py = stroke.py * 0.68 + py * 0.32;
+      var m = Math.sqrt(px * px + py * py) || 1;
+      px /= m; py /= m;
+    }
+    stroke.px = px; stroke.py = py; stroke.has = true;
+
+    var spec = TOOLS[tool];
+    var steps = Math.min(160, Math.ceil(dist / 1.1));
+    for (var s = 1; s <= steps; s++){
+      var f = s / steps;
+      var gx = (stroke.x + dx * f) / CELL;
+      var gy = (stroke.y + dy * f) / CELL;
+      if (tool === "smooth") smooth(gx, gy);
+      else if (tool === "ripple") { /* tap only */ }
+      else rake(gx, gy, px, py, spec);
+    }
+    stroke.x = p.x; stroke.y = p.y;
+  }
+
+  function up(e){
+    if (drag){
+      var p = pos(e);
+      if (drag.moved && inTrash(p.x, p.y)){
+        var idx = elements.indexOf(drag.el);
+        if (idx >= 0) elements.splice(idx, 1);
+        say("Removed. The imprint stays until you rake it.");
+      } else {
+        press(drag.el);
+        if (!drag.moved && tool === "ripple"){
+          ripple(drag.el.x / CELL, drag.el.y / CELL, (drag.el.size * 1.10) / CELL + 4);
+        }
+        say(TOOLS[tool].label);
+      }
+      drag = null; trash = null; needsDraw = true;
+      return;
+    }
+    stroke = null;
+  }
+
+  canvas.addEventListener("pointerdown", function(e){ e.preventDefault(); down(e); });
+  canvas.addEventListener("pointermove", function(e){ e.preventDefault(); move(e); });
+  canvas.addEventListener("pointerup", function(e){ e.preventDefault(); up(e); });
+  canvas.addEventListener("pointercancel", function(e){ up(e); });
+  canvas.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+
+  /* ---------- rack ---------- */
+
+  function say(msg){ statusEl.textContent = msg; }
+
+  var toolBtns = {}, elBtns = {};
+
+  function setTool(name){
+    tool = name;
+    armed = null;
+    for (var k in toolBtns) toolBtns[k].setAttribute("aria-pressed", String(k === name));
+    for (var j in elBtns) elBtns[j].setAttribute("aria-pressed", "false");
+    say(TOOLS[name].label);
+  }
+
+  function setArmed(type){
+    armed = type;
+    for (var j in elBtns) elBtns[j].setAttribute("aria-pressed", String(j === type));
+    if (type) say("Tap the sand to set the " + SPECS[type].name + ".");
+    else say(TOOLS[tool].label);
+  }
+
+  function makeBtn(host, id, icon, label, onClick){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "tool";
+    b.setAttribute("aria-label", label);
+    b.setAttribute("aria-pressed", "false");
+    b.title = label;
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + icon + "</svg>";
+    b.addEventListener("click", onClick);
+    host.appendChild(b);
+    return b;
+  }
+
+  var toolHost = document.getElementById("tools");
+  ["finger", "rake", "wide", "ripple", "smooth"].forEach(function(name){
+    toolBtns[name] = makeBtn(toolHost, name, TOOL_ICONS[name], TOOLS[name].label, function(){ setTool(name); });
+  });
+
+  var elHost = document.getElementById("elements");
+  ["stone", "moss", "pebbles", "leaf", "blossom", "lantern"].forEach(function(type){
+    var label = "Set a " + SPECS[type].name;
+    elBtns[type] = makeBtn(elHost, type, EL_ICONS[type], label, function(){
+      setArmed(armed === type ? null : type);
+    });
+  });
+
+  document.getElementById("flatten").addEventListener("click", function(){
+    Hf.fill(0);
+    for (var i = 0; i < elements.length; i++) press(elements[i]);
+    markDirty(0, 0, W - 1, H - 1);
+    say("Flat sand. Begin again.");
+  });
+
+  /* ---------- export ---------- */
+
+  function seal(c){
+    var s = 34, x = cssW - s - 16, y = cssH - s - 16;
+    c.save();
+    c.fillStyle = "#B4402F";
+    rr(c, x, y, s, s, 4);
+    c.fill();
+    c.strokeStyle = "rgba(255,255,255,0.55)";
+    c.lineWidth = 1;
+    rr(c, x + 4.5, y + 4.5, s - 9, s - 9, 2);
+    c.stroke();
+    c.fillStyle = "#fff";
+    c.font = "600 11px ui-monospace, Menlo, monospace";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("064", x + s / 2, y + s / 2 + 0.5);
+    c.restore();
+  }
+
+  document.getElementById("save").addEventListener("click", function(){
+    var out = document.createElement("canvas");
+    out.width = canvas.width; out.height = canvas.height;
+    var oc = out.getContext("2d");
+    oc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    oc.imageSmoothingEnabled = true;
+    oc.drawImage(sand, 0, 0, W, H, 0, 0, cssW, cssH);
+    drawElements(oc);
+    seal(oc);
+    try {
+      var url = out.toDataURL("image/png");
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "zen-garden.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      say("Saved.");
+    } catch (err){
+      say("This browser blocked the download. Long press the garden to save it.");
+    }
+  });
+
+  /* ---------- boot ---------- */
+
+  var rt = null;
+  window.addEventListener("resize", function(){
+    clearTimeout(rt);
+    rt = setTimeout(resize, 140);
+  });
+
+  resize();
+  setTool("rake");
+
+  var first = place("stone", cssW * 0.34, cssH * 0.40);
+  place("moss", cssW * 0.63, cssH * 0.57);
+  place("pebbles", cssW * 0.45, cssH * 0.72);
+  ripple(first.x / CELL, first.y / CELL, (first.size * 1.10) / CELL + 4);
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
